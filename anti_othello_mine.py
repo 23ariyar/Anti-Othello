@@ -1,15 +1,15 @@
-
-'''
-CODE HEAVILY INSPIRED FROM JOHN FISH'S OTHELLO PROGRAM
-'''
-
 from typing import List
 from copy import deepcopy
 import time
 from random import choices
 
 GLOBAL_DEPTH = 3
-ALPHA_BETA_DEPTH = 3
+
+ALPHA_BETA_DEPTH = 4
+ALPHA_BETA_DEPTH_PLAYER_2 = 4
+
+nodes = 0
+
 
 
 
@@ -43,7 +43,7 @@ class Game(object):
         
         for column in range(8):
             self.array.append([])
-            for row in range(8):
+            for _ in range(8):
                 self.array[column].append(None)
 
         self.array[3][3] = "w"
@@ -99,6 +99,8 @@ class Game(object):
             return ([bestValue, bestBoard])
 
     def alphaBeta(self, node, depth, alpha, beta, maximizing):
+        global nodes
+
         boards = []
         choices = []
         
@@ -108,7 +110,16 @@ class Game(object):
                     test = self.move(x, y, node)
                     boards.append(test)
                     choices.append([x, y])
+                    nodes += 1
         
+        if depth == ALPHA_BETA_DEPTH:
+            if len(choices) >= 7:
+                depth -= 1
+                print("More than 7 choices, lowered depth")
+            else:
+                print("Less then 7 choices, kept depth")
+        
+
         if depth == 0 or len(choices) == 0:
             return ([self.scoring(node, maximizing), node])
 
@@ -126,7 +137,7 @@ class Game(object):
                 
                 if beta <= alpha:
                     break
-            return ([v, best_board, best_choice])
+            
         
         else:
             v = float("inf")
@@ -142,7 +153,12 @@ class Game(object):
                 beta = min(beta, v)
                 if beta <= alpha:
                     break
-            return ([v, best_board, best_choice])
+        '''
+        if depth == ALPHA_BETA_DEPTH:
+            print("Total nodes: " + str(nodes))
+            nodes = 0
+        '''
+        return ([v, best_board, best_choice])
 
     def isValid(self, x: int, y: int) -> bool: 
         '''
@@ -393,8 +409,8 @@ class Game(object):
 
             else:
                 print("White's turn |", flush = True)
-                minimaxResult = self.minimax(self.array, GLOBAL_DEPTH, 1)
-                self.array = minimaxResult[1]
+                alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH_PLAYER_2, -float("inf"), float("inf"), 1)
+                self.array = alpha_beta_result[1]
                 elapsed_time = time.time() - start_time
                 if elapsed_time > 1: white_overtime += 1
             
