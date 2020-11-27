@@ -1,17 +1,28 @@
 
-
 '''
 CODE HEAVILY INSPIRED FROM JOHN FISH'S OTHELLO PROGRAM
 '''
 
 from typing import List
 from copy import deepcopy
-from time import sleep
+import time
 from random import choices
 
 GLOBAL_DEPTH = 3
-ALPHA_BETA_DEPTH = 4
+ALPHA_BETA_DEPTH = 3
 
+
+
+def hms_string(sec_elapsed: int) -> str:
+    """
+    Gets time in Hour:Minutes:Seconds
+    :param sec_elapsed: seconds elapsed
+    :return: Hour:Minutes:Seconds
+    """
+    h = int(sec_elapsed / (60 * 60))
+    m = int((sec_elapsed % (60 * 60)) / 60)
+    s = sec_elapsed % 60
+    return "{}:{:>02}:{:>05.2f}".format(h, m, s)
 
 class Game(object):
     def __init__(self, player = None):
@@ -40,6 +51,16 @@ class Game(object):
         self.array[4][3] = "b"
         self.array[4][4] = "w"
 
+        #based off of: http://play-othello.appspot.com/files/Othello.pdf
+        self.squares_to_values_mapping = { # [[x, y], [x, y]... ] : value 
+            -100: [[0, 0], [7, 0], [0, 7], [7, 7]], #corner
+            20: [[1, 0], [0, 1], [6, 0], [7, 1], [0, 6], [1, 7], [6, 7], [7, 6]],  #adjacent_linear
+            50: [[1, 1], [6, 1], [1, 6], [6, 6]], #adjacent_diagonal
+            -10: [[2, 0], [5, 0], [0, 2], [0, 5], [7, 2], [7, 5], [2, 7], [5, 7]], #side_outer
+            -5: [[3, 0], [4, 0], [0, 3], [0, 4], [7, 3], [7, 4], [3, 7], [4, 7]], #side_inner
+            1: [[1, 2], [1, 3], [1, 4], [1, 5], [6, 2], [6, 3], [6, 4], [6, 5], [1, 2], [1, 3], [1, 4], [1, 5], [7, 2], [7, 3], [7, 4], [7, 5]], #inner_4x4_walls_excluding_diagonals
+        }
+        
     def minimax(self, node, depth, maximizing):
         
         boards = []
@@ -196,6 +217,7 @@ class Game(object):
             array = deepcopy(temp_array)
         else:
             array = deepcopy(self.array)
+
         if self.player == 1:
             colour = 'w'
         else:
@@ -249,11 +271,6 @@ class Game(object):
         :param board: array of a board
         :param player: 0 for player to be black and 1 for player to be black
         '''
-        score = 0
-        corner_val = 25
-        adjacent_val = 5
-        side_val = 5
-        #set scoring vals
 
         #Set player and opponent colour
         if self.player == 0:
@@ -262,44 +279,20 @@ class Game(object):
         else:
             colour = 'w'
             opponent = 'b'
-
+        score = 0
         #iterate through all the vals
         for x in range(8):
             for y in range(8):
-                #Normal tiles worth -1
                 add = -1
-
-                #Adjacent to corners are worth -3
-                if (x == 0 and y == 1) or (x == 1 and 0 <= y <= 1):
-                    
-                    if board[0][0] == colour:
-                        add = side_val
-                    else:
-                        add = -adjacent_val
-
-                elif (x == 0 and y == 6) or (x == 1 and 6 <= y <= 7):     
-                    if board[0][7] == colour:
-                        add = side_val
-                    else:
-                        add = -adjacent_val
+                for value in self.squares_to_values_mapping:
+                    if [x, y] in self.squares_to_values_mapping[value]:
+                        add = value
+                        break
                 
-                elif (x==7 and y==6) or (x==6 and 6<=y<=7):
-                    if board[7][7] == colour:
-                        add = side_val
-                    
-                    else:
-                        add = -adjacent_val
+                if board[y][x] == colour:
+                        score += add
                 
-                elif (x == 0 and 1 < y < 6) or (x == 7 and 1 < y < 6) or (y == 0 and 1 < x < 6) or (y == 7 and 1 < x < 6):
-                    add = side_val
-                
-                elif (x == 0 and y == 0) or (x == 0 and y == 7) or (x == 7 and y == 0) or (x == 7 and y == 7):
-                    add = corner_val
-
-                if board[x][y] == colour:
-                    score += add
-                
-                elif board[x][y] == opponent:
+                elif board[y][x] == opponent:
                     score -= add
         
         return score
@@ -310,6 +303,14 @@ class Game(object):
                 if self.isValid(x, y): return True
 
         return False
+
+    def getPossibleMoves(self) -> List:
+        moves = []
+        for x in range(8):
+            for y in range(8):
+                if self.isValid(x, y): moves.append([x, y])
+
+        return moves
 
     def askForMove(self) -> List:
         x = int(input('What X coordinate would you like to play? '))
@@ -323,10 +324,12 @@ class Game(object):
     def playGame(self):  
         while not self.won:
             print ('_______________Moves: {}________________'.format(self.moves), flush = True)
-            print(board, flush = True)
+            print(self, flush = True)
             print('\n', flush = True)
 
-            if not self.passTest():
+            valid_moves = self.getPossibleMoves()
+
+            if not valid_moves:
                 if self.passed:
                     self.won = True
                 else:
@@ -354,37 +357,56 @@ class Game(object):
         print("Game Over", flush = True)
 
     def playGame_AI(self):
-        while not self.won:
-            print ('_______________Moves: {}________________'.format(self.moves))
-            print(board)
-            print('\n')
+        
+        black_overtime = 0
+        white_overtime = 0
 
-            if not self.passTest():
+        while not self.won:
+            print ('_______________Moves: {}________________'.format(self.moves), flush = True)
+            print(self, flush = True)
+            print('\n', flush = True)
+
+            valid_moves = self.getPossibleMoves()
+
+            if not valid_moves:
                 if self.passed:
                     self.won = True
                 else:
                     self.passed = True
                 
                 self.player = 1 - self.player
-                print("NO POSSIBLE MOVES, PASSED TO PLAYER " + str(self.player))
+                print("NO POSSIBLE MOVES, PASSED TO PLAYER " + str(self.player), flush = True)
                 continue
 
             else: 
                 self.passed = False
 
+            start_time = time.time()
+
             if self.player == 0:
-                print("Black's turn") 
+                
+                print("Black's turn", flush = True)
                 alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH, -float("inf"), float("inf"), 1)
                 self.array = alpha_beta_result[1]
+                elapsed_time = time.time() - start_time
+                if elapsed_time > 1: black_overtime += 1
 
             else:
-                print("White's turn |")
+                print("White's turn |", flush = True)
                 minimaxResult = self.minimax(self.array, GLOBAL_DEPTH, 1)
                 self.array = minimaxResult[1]
+                elapsed_time = time.time() - start_time
+                if elapsed_time > 1: white_overtime += 1
+            
+            print("Elapsed Time: {}".format(hms_string(elapsed_time)), flush = True)
             #sleep(15)
             self.player = 1 - self.player
             self.moves += 1
-        print("Game Over")
+
+        print("Game Over", flush = True)
+        print('\n\n', flush = True)
+        print('Black over time: ' + str(black_overtime), flush = True)
+        print('White over time: ' + str(white_overtime), flush = True)
 
     def __str__(self):
         my_string = ''
