@@ -3,8 +3,11 @@ from copy import deepcopy
 import time
 from random import choices
 
+GLOBAL_DEPTH = 4
+
 ALPHA_BETA_DEPTH = 4
 ALPHA_BETA_DEPTH_PLAYER_2 = 2
+MAX_CHOICES = 8
 
 nodes = 0
 
@@ -99,7 +102,7 @@ class Game(object):
             return ([bestValue, bestBoard])
 
     def alphaBeta(self, node, depth, alpha, beta, maximizing):
-        global nodes
+        #global nodes
 
         boards = []
         choices = []
@@ -115,11 +118,11 @@ class Game(object):
 
         #If there are X or more choices, lower depth. this increases efficiency but decreases chances to get the best result
         if depth == ALPHA_BETA_DEPTH:
-            if len(choices) >= 8:
+            if len(choices) >= MAX_CHOICES:
                 depth -= 1
-                print("More than 7 choices, lowered depth")
+                print(f"More than {MAX_CHOICES} choices, lowered depth")
             else:
-                print("Less then 7 choices, kept depth")
+                print(f"Less then {MAX_CHOICES} choices, kept depth")
         
         #Basic alpha-beta pruning algorithim
         if depth == 0 or len(choices) == 0:
@@ -414,8 +417,8 @@ class Game(object):
 
             else:
                 print("White's turn |", flush = True)
-                alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH_PLAYER_2, -float("inf"), float("inf"), 1)
-                self.array = alpha_beta_result[1]
+                minimax_result = self.minimax(self.array, GLOBAL_DEPTH, 1)
+                self.array = minimax_result[1]
                 elapsed_time = time.time() - start_time
                 if elapsed_time > 1: white_overtime += 1
             
