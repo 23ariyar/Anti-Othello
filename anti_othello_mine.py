@@ -3,10 +3,8 @@ from copy import deepcopy
 import time
 from random import choices
 
-GLOBAL_DEPTH = 3
-
 ALPHA_BETA_DEPTH = 4
-ALPHA_BETA_DEPTH_PLAYER_2 = 4
+ALPHA_BETA_DEPTH_PLAYER_2 = 2
 
 nodes = 0
 
@@ -50,6 +48,8 @@ class Game(object):
         self.array[3][4] = "b"
         self.array[4][3] = "b"
         self.array[4][4] = "w"
+
+        self.scoring_memoization = {} #repr(board): [blacks_score, whites_score]
 
         #based off of: http://play-othello.appspot.com/files/Othello.pdf
         self.squares_to_values_mapping = { # [[x, y], [x, y]... ] : value 
@@ -104,6 +104,7 @@ class Game(object):
         boards = []
         choices = []
         
+        #Finds all valid moves
         for x in range(8):
             for y in range(8):
                 if self.isValid(x, y):
@@ -111,15 +112,16 @@ class Game(object):
                     boards.append(test)
                     choices.append([x, y])
                     nodes += 1
-        
+
+        #If there are X or more choices, lower depth. this increases efficiency but decreases chances to get the best result
         if depth == ALPHA_BETA_DEPTH:
-            if len(choices) >= 7:
+            if len(choices) >= 8:
                 depth -= 1
                 print("More than 7 choices, lowered depth")
             else:
                 print("Less then 7 choices, kept depth")
         
-
+        #Basic alpha-beta pruning algorithim
         if depth == 0 or len(choices) == 0:
             return ([self.scoring(node, maximizing), node])
 
@@ -288,14 +290,14 @@ class Game(object):
         :param player: 0 for player to be black and 1 for player to be black
         '''
 
-        #Set player and opponent colour
-        if self.player == 0:
-            colour = 'b'
-            opponent = 'w'
-        else:
-            colour = 'w'
-            opponent = 'b'
-        score = 0
+        brepr = repr(board)
+
+        if brepr in self.scoring_memoization:
+            return self.scoring_memoization[brepr][player]
+
+        black_score = 0
+        white_score = 0
+        
         #iterate through all the vals
         for x in range(8):
             for y in range(8):
@@ -305,13 +307,16 @@ class Game(object):
                         add = value
                         break
                 
-                if board[y][x] == colour:
-                        score += add
+                if board[y][x] == 'b':
+                    black_score += add
+                    white_score -= add
                 
-                elif board[y][x] == opponent:
-                    score -= add
-        
-        return score
+                elif board[y][x] == 'w':
+                    black_score -= add
+                    white_score += add
+        self.scoring_memoization[brepr] = [black_score, white_score]
+
+        return [black_score, white_score][player]
 
     def passTest(self) -> bool:        
         for x in range(8):
