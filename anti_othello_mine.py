@@ -2,6 +2,7 @@ from typing import List
 from copy import deepcopy
 import time
 from random import choices
+from os import sys
 
 GLOBAL_DEPTH = 4
 
@@ -10,9 +11,20 @@ ALPHA_BETA_DEPTH_PLAYER_2 = 2
 MAX_CHOICES = 8
 
 nodes = 0
+def debug_print(*args):
+  print(*args, file=sys.stderr, flush=True)
 
+def xy_to_alphanum(x, y):
+  '''
+  assumes non 0-indexed coordinates
+  '''
+  return f'{chr(96 + x)}{y}'
 
-
+def alphanum_to_xy(alpha, num):
+  '''
+  returns non 0-indexed coordinates
+  '''
+  return (ord(alpha) - 96, int(num))
 
 def hms_string(sec_elapsed: int) -> str:
     """
@@ -36,9 +48,12 @@ class Game(object):
             self.player = player
         else:
             self.player = int(input("Input 0 for black and 1 for white: "))
+
         self.won = False
         self.passed = False
         self.moves = 0
+
+        self.static_player = player
 
         self.array = []
         
@@ -47,10 +62,10 @@ class Game(object):
             for _ in range(8):
                 self.array[column].append(None)
 
-        self.array[3][3] = "w"
-        self.array[3][4] = "b"
-        self.array[4][3] = "b"
-        self.array[4][4] = "w"
+        self.array[3][3] = "b"
+        self.array[3][4] = "w"
+        self.array[4][3] = "w"
+        self.array[4][4] = "b"
 
         self.scoring_memoization = {} #repr(board): [blacks_score, whites_score]
 
@@ -102,7 +117,11 @@ class Game(object):
             return ([bestValue, bestBoard])
 
     def alphaBeta(self, node, depth, alpha, beta, maximizing):
-        #global nodes
+        '''
+        maximizing = 0 gets best result for black
+        maximizing = 1 gets best result for white
+        '''
+        global nodes
 
         boards = []
         choices = []
@@ -113,20 +132,20 @@ class Game(object):
                 if self.isValid(x, y):
                     test = self.move(x, y, node)
                     boards.append(test)
-                    choices.append([x, y])
+                    choices.append([x, y]) #0 indexed coordinates
                     nodes += 1
 
         #If there are X or more choices, lower depth. this increases efficiency but decreases chances to get the best result
         if depth == ALPHA_BETA_DEPTH:
             if len(choices) >= MAX_CHOICES:
                 depth -= 1
-                print(f"More than {MAX_CHOICES} choices, lowered depth")
+                debug_print(f"More than {MAX_CHOICES} choices, lowered depth")
             else:
-                print(f"Less then {MAX_CHOICES} choices, kept depth")
+                debug_print(f"Less then {MAX_CHOICES} choices, kept depth")
         
         #Basic alpha-beta pruning algorithim
         if depth == 0 or len(choices) == 0:
-            return ([self.scoring(node, maximizing), node])
+            return ([-self.scoring(node, maximizing), node])
 
         if not maximizing:
             v = -float("inf")
@@ -228,7 +247,7 @@ class Game(object):
                             tempY += deltaY
                 return valid
 
-    def move(self, x: int, y: int, temp_array = None):
+    def move(self, x: int, y: int, temp_array = None, player = None):
         '''
         :param x: 0-indexed coordinate
         :param y: 0-indexed coordinate
@@ -239,7 +258,10 @@ class Game(object):
         else:
             array = deepcopy(self.array)
 
-        if self.player == 1:
+        if player == None:
+          player = self.player
+      
+        if player == 1:
             colour = 'w'
         else:
             colour = 'b'
@@ -432,6 +454,17 @@ class Game(object):
         print('Black over time: ' + str(black_overtime), flush = True)
         print('White over time: ' + str(white_overtime), flush = True)
 
+    def askForAIMove_COMP(self):
+      self.player = self.static_player
+      
+      alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH, -float("inf"), float("inf"), 1)
+      return xy_to_alphanum(alpha_beta_result[2][0]+1, alpha_beta_result[2][1]+1)
+
+    def getFinalMove_COMP(self, given_move: str, player: int):
+        (x, y) = alphanum_to_xy(given_move[0], given_move[1])
+        self.player = player
+        self.array = self.move(x, y)
+    
     def __str__(self):
         my_string = ''
         for column in self.array:
@@ -441,5 +474,10 @@ class Game(object):
 
 
 
-game = Game()
-game.playGame_AI()
+
+#game = Game(1)
+#game.playGame_AI()
+
+game = Game(1)
+print(game.askForAIMove_COMP())
+
