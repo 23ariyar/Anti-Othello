@@ -1,20 +1,18 @@
-from typing import List
+#!/usr/bin/env python3
+
+import sys
+from typing import List, Tuple
 from copy import deepcopy
 import time
 from random import choices
-from os import sys
+
 
 GLOBAL_DEPTH = 4
 
-ALPHA_BETA_DEPTH = 4
+ALPHA_BETA_DEPTH = 3
 ALPHA_BETA_DEPTH_PLAYER_2 = 2
 MAX_CHOICES = 8
 
-def reshape(the_list, r, c): 
-    """Reshape the 1D list into a m row x n column list""" 
-    if r*c != len(the_list): 
-        raise ValueError('Invalid new shape')  
-    return [the_list[tr*c:(tr+1)*c] for tr in range(0,r)]
 
 def debug_print(*args):
   print(*args, file=sys.stderr, flush=True)
@@ -46,16 +44,13 @@ def hms_string(sec_elapsed: int) -> str:
     return "{}:{:>02}:{:>05.2f}".format(h, m, s)
 
 class Game(object):
-    def __init__(self, player = None):
+    def __init__(self, player: int):
         '''
         0 is black
         1 is white
         black plays first
         '''
-        if player:
-            self.player = player
-        else:
-            self.player = int(input("Input 0 for black and 1 for white: "))
+        self.player = player
 
         self.won = False
         self.passed = False
@@ -65,10 +60,10 @@ class Game(object):
 
         self.array = [None for i in range(64)]
 
-        self.array[27] = "b"
-        self.array[28] = "w"
-        self.array[35] = "w"
-        self.array[36] = "b"
+        #self.array[27] = "b"
+        #self.array[28] = "w"
+        #self.array[35] = "w"
+        #self.array[36] = "b"
 
         
 
@@ -100,10 +95,7 @@ class Game(object):
             [51, 58, 60, 50, 52], [52, 59, 61, 51, 53], [53, 60, 62, 52, 54], [54, 61, 63, 53, 55], [55, 62, 54]
         ]
 
-
-        
-
-    def alphaBeta(self, node, depth, alpha, beta, maximizing):
+    def alphaBeta(self, node: List, depth: int, alpha: int, beta: int, maximizing: int) -> Tuple:
         '''
         maximizing = 0 gets best result for black
         maximizing = 1 gets best result for white
@@ -165,13 +157,13 @@ class Game(object):
         '''
         return ([v, best_board, best_choice])
 
-    def convert_xy(self, x, y):
+    def convert_xy(self, x: int, y: int) -> int:
         return (x + y * 8)
-#CHECK
-    def convert_pos(self, pos):
+
+    def convert_pos(self, pos: int) -> Tuple:
         #returns (x, y)
         return ((pos % 8), (pos // 8))
-#CHECK
+
     def isValid(self, pos: int, board = None) -> bool: 
         '''
         :param x: 0-indexed coordinate
@@ -225,8 +217,8 @@ class Game(object):
                             tempX += deltaX
                             tempY += deltaY
             return valid
-#CHECK
-    def move(self, pos: int, temp_array = None, player = None):
+
+    def move(self, pos: int, temp_array = None, player = None) -> List:
         '''
         :param x: 0-indexed coordinate
         :param y: 0-indexed coordinate
@@ -281,7 +273,7 @@ class Game(object):
             array[node] = colour
 
         return array
-#CHECK
+
     def scoring(self, board, player:int, weights = None) -> int:
         '''
         :param board: array of a board
@@ -299,161 +291,55 @@ class Game(object):
             elif p == opponent: score -= p * w
         
         return score
-#CHECK
-    def passTest(self) -> bool:       
-        return any(self.isValid(pos) for pos in range(64)) 
-#CHECK
 
     def getPossibleMoves(self, board = None) -> List:
         if not board: board = self.array
         moves = [pos for pos in range(64) if self.isValid(pos, board)]
         return moves
 
-    def askForMove(self) -> List: 
-        x = int(input('What X coordinate would you like to play? '))
-        y = int(input('What Y coordinate would you like to play? '))
-        if self.isValid(x - 1, y - 1):
-            return (x - 1, y - 1)
-        else:
-            print('Not a valid move.')
-            return self.askForMove()
-
-    def playGame(self):  
-        while not self.won:
-            print ('_______________Moves: {}________________'.format(self.moves), flush = True)
-            print(self, flush = True)
-            print('\n', flush = True)
-
-            valid_moves = self.getPossibleMoves()
-
-            if not valid_moves:
-                if self.passed:
-                    self.won = True
-                else:
-                    self.passed = True
-                
-                self.player = 1 - self.player
-                print("NO POSSIBLE MOVES, PASSED TO PLAYER " + str(self.player), flush = True)
-                continue
-
-            else: 
-                self.passed = False
-
-            if self.player == 0:
-                print("Black's turn |", flush = True) 
-                (x, y) = self.askForMove()  
-                self.array = self.move(x, y)
-
-            else:
-                print("White's turn |", flush = True)
-                minimaxResult = self.minimax(self.array, GLOBAL_DEPTH, 1)
-                self.array = minimaxResult[1]
-
-            self.player = 1 - self.player
-
-        print("Game Over", flush = True)
-
-    def playGame_AI(self):
-        
-        black_overtime = 0
-        white_overtime = 0
-
-        while not self.won:
-            print ('_______________Moves: {}________________'.format(self.moves), flush = True)
-            print(self, flush = True)
-            print('\n', flush = True)
-
-            valid_moves = self.getPossibleMoves()
-
-            if not valid_moves:
-                if self.passed:
-                    self.won = True
-                else:
-                    self.passed = True
-                
-                self.player = 1 - self.player
-                print("NO POSSIBLE MOVES, PASSED TO PLAYER " + str(self.player), flush = True)
-                continue
-
-            else: 
-                self.passed = False
-
-            start_time = time.time()
-
-            if self.player == 0:
-                
-                print("Black's turn", flush = True)
-                alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH, -float("inf"), float("inf"), 0)
-                self.array = alpha_beta_result[1]
-                elapsed_time = time.time() - start_time
-                if elapsed_time > 1: black_overtime += 1
-
-            else:
-                print("White's turn |", flush = True)
-                alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH_PLAYER_2, -float("inf"), float("inf"), 1)
-                self.array = alpha_beta_result[1]
-                elapsed_time = time.time() - start_time
-                if elapsed_time > 1: white_overtime += 1
-            
-            print("Elapsed Time: {}".format(hms_string(elapsed_time)), flush = True)
-            #sleep(15)
-            self.player = 1 - self.player
-            self.moves += 1
-
-        print("Game Over", flush = True)
-        print('\n\n', flush = True)
-        print('Black over time: ' + str(black_overtime), flush = True)
-        print('White over time: ' + str(white_overtime), flush = True)
-
-    def askForAIMove_COMP(self):
+    def askForAIMove_COMP(self) -> str:
       self.player = self.static_player
       
       alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH, -float("inf"), float("inf"), 1)
       return xy_to_alphanum(alpha_beta_result[2])
 
-    def getFinalMove_COMP(self, given_move: str, player: int):
+    def getFinalMove_COMP(self, given_move: str, player: int) -> None:
         (x, y) = alphanum_to_xy(given_move[0], given_move[1])
         pos = self.convert_xy(x, y)
         self.player = player
-        self.array = self.move((pos)
+        self.array = self.move(pos)
     
-    def __str__(self):
-        temp = reshape(self.array, 8, 8)
-
-        my_string = ''
-        for column in temp:
-            my_string += str(['-' if i == None else i for i in column])
-            my_string += '\n'
-                    
-    
-        return my_string
 
 
 
 
-
-game = Game(1)
-#game.playGame_AI()
-
-print(alphanum_to_xy('c', 3))
-
-#print(game.askForAIMove_COMP())
+bw = input()
+if bw == 'w': bw = 1
+else: bw = 0
+game = Game(0)
 
 
-'''
+
+print('ok', flush=True)
+
+line = '...'
+
 while line and line != 'done':
   line = input()
   if line == 'get move':
     move = game.askForAIMove_COMP()
-    debug_print("Here")
     print(move, flush=True)
   elif line[:4] == 'move':
-    debug_print("2")
     temp_player = 1 if line[5] == 'w' else 0
     move = line[7:9]
     game.getFinalMove_COMP(move, temp_player)
 
   else:
-    debug_print(line + " ||| THAT IS THE LINE")
+    pass
+    #debug_print(line)
 
-'''
+
+
+
+
+
