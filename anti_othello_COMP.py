@@ -13,6 +13,9 @@ ALPHA_BETA_DEPTH = 3
 ALPHA_BETA_DEPTH_PLAYER_2 = 2
 MAX_CHOICES = 8
 
+TIME_ALLOWED = .8
+
+best_move_GLOBAL = None
 
 def debug_print(*args):
   print(*args, file=sys.stderr, flush=True)
@@ -60,10 +63,10 @@ class Game(object):
 
         self.array = [None for i in range(64)]
 
-        #self.array[27] = "b"
-        #self.array[28] = "w"
-        #self.array[35] = "w"
-        #self.array[36] = "b"
+        self.array[27] = "b"
+        self.array[28] = "w"
+        self.array[35] = "w"
+        self.array[36] = "b"
 
         
 
@@ -95,6 +98,8 @@ class Game(object):
             [51, 58, 60, 50, 52], [52, 59, 61, 51, 53], [53, 60, 62, 52, 54], [54, 61, 63, 53, 55], [55, 62, 54]
         ]
 
+        self.start_time = time.time()
+
     def alphaBeta(self, node: List, depth: int, alpha: int, beta: int, maximizing: int) -> Tuple:
         '''
         maximizing = 0 gets best result for black
@@ -102,11 +107,20 @@ class Game(object):
         '''
 
         choices = self.getPossibleMoves(node)
-        boards = [self.move(i, node, maximizing) for i in choices] #ALSO TRY WITHOUT PUTTING MAXIMIZNG IN THERE THATS WHAT I DID BEFORE LOLZERS
+        boards = [self.move(i, node, maximizing) for i in choices]
 
+
+
+        if depth == 0 or len(choices) == 0:
+            return ([-self.scoring(node, maximizing), node]) #to negative or not to negative... that is the question
+
+
+        if time.time() - self.start_time >= TIME_ALLOWED: return ([-self.scoring(boards[0], maximizing), boards[0], choices[0]])
+        global best_move_GLOBAL
 
         #If there are X or more choices, lower depth. this increases efficiency but decreases chances to get the best result
         if depth == ALPHA_BETA_DEPTH:
+            best_move_GLOBAL = choices[0]
             if len(choices) >= MAX_CHOICES:
                 depth -= 1
                 debug_print(f"More than {MAX_CHOICES} choices, lowered depth")
@@ -114,8 +128,7 @@ class Game(object):
                 debug_print(f"Less then {MAX_CHOICES} choices, kept depth")
         
         #Basic alpha-beta pruning algorithim
-        if depth == 0 or len(choices) == 0:
-            return ([-self.scoring(node, maximizing), node]) #to negative or not to negative... that is the question
+        
 
         if not maximizing:
             v = -float("inf")
@@ -143,7 +156,7 @@ class Game(object):
                 if board_value < v:
                     v = board_value
                     best_board = board
-                    best_choice = choice\
+                    best_choice = choice
                     
 
 
@@ -298,10 +311,11 @@ class Game(object):
         return moves
 
     def askForAIMove_COMP(self) -> str:
-      self.player = self.static_player
-      
-      alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH, -float("inf"), float("inf"), 1)
-      return xy_to_alphanum(alpha_beta_result[2])
+        #debug_print("HERE")
+        self.player = self.static_player
+        self.start_time = time.time()
+        alpha_beta_result = self.alphaBeta(self.array, ALPHA_BETA_DEPTH, -float("inf"), float("inf"), 1)
+        return xy_to_alphanum(alpha_beta_result[2])
 
     def getFinalMove_COMP(self, given_move: str, player: int) -> None:
         (x, y) = alphanum_to_xy(given_move[0], given_move[1])
@@ -316,7 +330,7 @@ class Game(object):
 bw = input()
 if bw == 'w': bw = 1
 else: bw = 0
-game = Game(0)
+game = Game(bw)
 
 
 
@@ -336,10 +350,3 @@ while line and line != 'done':
 
   else:
     pass
-    #debug_print(line)
-
-
-
-
-
-
